@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "493494009350",
+    "project_id": "thepastrypath-app",
+    "storage_bucket": "thepastrypath-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:493494009350:android:ce6246c2595d2709740d87",
+        "android_client_info": {
+          "package_name": "com.example.thepastrypath"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAt4Uet2VxiVsmo7WE0mRC96AkXbUxJMAI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
