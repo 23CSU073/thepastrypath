@@ -1,6 +1,6 @@
 # The Pastry Path
 
-The Pastry Path is a cafe and bakery discovery app built with Flutter, Firebase, Provider, location services, Google Maps, recommendations, reservations, and bakery trend insights. It narrows the Foodie Finder brief into a pastry-focused experience for finding nearby bakeries, comparing menus, saving favorites, reading reviews, and reserving tables.
+The Pastry Path is a cafe and bakery discovery app built with Flutter, Firebase, Provider, location services, OpenStreetMap, recommendations, reservations, and bakery trend insights. It narrows the Foodie Finder brief into a pastry-focused experience for finding nearby bakeries, comparing menus, saving favorites, reading reviews, and reserving tables.
 
 ## Features
 
@@ -9,7 +9,7 @@ The Pastry Path is a cafe and bakery discovery app built with Flutter, Firebase,
 - Bakery detail pages with photo gallery, menu items, reviews, directions, and reservations.
 - Favorites with offline caching.
 - Location-aware distance calculation for Gurugram bakeries.
-- Map view with Google Maps on Android, iOS, and web, including map search for bakery names and areas.
+- Map view with OpenStreetMap on Android, iOS, and web, including place search for bakery names and areas.
 - Reservation flow backed by Firestore; mock success is disabled so confirmations only appear after a real save.
 - Profile review flow for rating visited cafes and bakeries.
 - Insight dashboard with charts for category popularity and trend interpretation.
@@ -179,20 +179,18 @@ Edge cases:
 3. Configure Firebase with FlutterFire: `flutterfire configure`.
 4. Enable Firebase Auth email/password in Firebase Console.
 5. Enable Cloud Firestore.
-6. Add Google Maps keys:
-   - Android: add `GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY` to `android/local.properties` (or replace the manifest placeholder).
-   - Dart define (used by in-app Google Places text search): run with `--dart-define=GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY`.
-   - iOS: replace `GoogleMapsApiKey` in `ios/Runner/Info.plist`.
-   - Web: replace `YOUR_GOOGLE_MAPS_API_KEY` in the Google Maps script tag inside `web/index.html`.
-   - Google Cloud APIs to enable: `Maps JavaScript API`, `Maps SDK for Android`, `Maps SDK for iOS`, and `Places API (New)`.
-7. Run `flutter run --dart-define=GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY`.
+6. OpenStreetMap/Nominatim setup:
+   - No API key is required for map tiles or basic place search.
+   - The app uses `flutter_map` for map rendering and Nominatim for place search.
+   - For production/high traffic, host your own Nominatim instance or use a managed provider that supports OSM data.
+7. Run `flutter run`.
 
 ## APK Build
 
 ```bash
 flutter clean
 flutter pub get
-flutter build apk --release --dart-define=GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY
+flutter build apk --release
 ```
 
 The APK is generated in `build/app/outputs/flutter-apk/`.
@@ -208,7 +206,7 @@ The APK is generated in `build/app/outputs/flutter-apk/`.
 ## Challenges Faced
 
 - Balancing Firebase-backed production structure with offline-first demo behavior.
-- Keeping maps usable while API keys are environment-specific.
+- Keeping maps and place search reliable while respecting open-data service usage limits.
 - Preventing reservation mock mode from creating false success.
 - Making recommendation logic deterministic enough to test while still feeling personalized.
 

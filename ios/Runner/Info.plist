@@ -24,8 +24,6 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>GoogleMapsApiKey</key>
-	<string>AIzaSyDeksSBrDb5aZtq7jBQgzt3nMGnwWE7Pck</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>The Pastry Path uses your location to show nearby bakeries.</string>
 	<key>LSRequiresIPhoneOS</key>

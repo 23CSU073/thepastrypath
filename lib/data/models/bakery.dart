@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class MenuItem {
   const MenuItem({required this.name, required this.price, required this.category, required this.imageUrl});
@@ -60,8 +59,6 @@ class Bakery {
   final List<MenuItem> menu;
   final String openUntil;
   final double? distanceKm;
-
-  LatLng get position => LatLng(latitude, longitude);
 
   Bakery copyWith({double? distanceKm}) => Bakery(
         id: id,

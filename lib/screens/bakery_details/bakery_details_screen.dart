@@ -30,7 +30,7 @@ class _BakeryDetailsScreenState extends State<BakeryDetailsScreen> {
 
   Future<void> _openMaps() async {
     final uri = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=${widget.bakery.latitude},${widget.bakery.longitude}',
+      'https://www.openstreetmap.org/?mlat=${widget.bakery.latitude}&mlon=${widget.bakery.longitude}#map=16/${widget.bakery.latitude}/${widget.bakery.longitude}',
     );
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }

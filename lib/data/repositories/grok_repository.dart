@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/constants/app_constants.dart';
 import '../models/grok_place.dart';
 
 class GrokApiKeyMissingException implements Exception {
@@ -9,7 +10,7 @@ class GrokApiKeyMissingException implements Exception {
 
   @override
   String toString() =>
-      'Missing GROQ_API_KEY. Pass it with --dart-define=GROQ_API_KEY=<your_key>.';
+      'Missing Groq API key. Set GROQ_API_KEY or provide a bundled fallback key.';
 }
 
 class GrokRequestException implements Exception {
@@ -32,7 +33,7 @@ class GrokRepository {
   );
   static const String _apiKey = String.fromEnvironment(
     'GROQ_API_KEY',
-    defaultValue: '',
+    defaultValue: AppConstants.groqApiKey,
   );
 
   final http.Client _client;

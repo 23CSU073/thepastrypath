@@ -1,15 +1,15 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:google_places_sdk_flutter/google_places_sdk_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/services/open_street_map_place_search_service.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/google_maps_web_bootstrap.dart';
 import '../../data/models/bakery.dart';
+import '../../data/models/open_street_map_place.dart';
 import '../../providers/bakery_provider.dart';
 import '../bakery_details/bakery_details_screen.dart';
 
@@ -21,33 +21,28 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  static const String _googleMapsApiKey = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
-    defaultValue: AppConstants.mapsApiKeyPlaceholder,
-  );
-
-  GoogleMapController? _controller;
-  Bakery? _selectedBakery;
-  PlaceData? _selectedPlace;
+  final MapController _mapController = MapController();
   final TextEditingController _searchController = TextEditingController();
-  late final PlacesClient _placesClient;
+  late final OpenStreetMapPlaceSearchService _placesService;
+
+  Bakery? _selectedBakery;
+  OpenStreetMapPlace? _selectedPlace;
 
   String _mapQuery = '';
   bool _isSearchingPlaces = false;
   String? _placesError;
-  List<PlaceData> _placesResults = const [];
+  List<OpenStreetMapPlace> _placesResults = const [];
 
   @override
   void initState() {
     super.initState();
-    _placesClient = PlacesClient(apiKey: _googleMapsApiKey);
+    _placesService = OpenStreetMapPlaceSearchService();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _placesClient.close();
-    _controller?.dispose();
+    _placesService.dispose();
     super.dispose();
   }
 
@@ -58,55 +53,47 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Future<void> _openPlaceInGoogleMaps(PlaceData place) async {
-    final uriString =
-        place.googleMapsUri ??
-        _fallbackMapsUri(
-          name: place.displayName?.text,
-          coordinates: place.location,
-        );
-    final uri = Uri.parse(uriString);
+  Future<void> _openPlaceInOpenStreetMap(OpenStreetMapPlace place) async {
+    final uri = Uri.parse(place.openStreetMapUrl);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  String _fallbackMapsUri({
-    required String? name,
-    required PlaceCoordinates? coordinates,
+  void _moveCamera({
+    required LatLng center,
+    required double zoom,
+    Bakery? bakery,
+    OpenStreetMapPlace? place,
   }) {
-    final query = (name ?? 'cafe').trim();
-    if (coordinates == null) {
-      return 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}';
-    }
-    return 'https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}';
-  }
-
-  Future<void> _focusOnPlace(PlaceData place) async {
-    final location = place.location;
-    if (location == null) return;
     setState(() {
+      _selectedBakery = bakery;
       _selectedPlace = place;
-      _selectedBakery = null;
     });
 
-    final controller = _controller;
-    if (controller == null) return;
-    await controller.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: LatLng(location.latitude, location.longitude),
-          zoom: 14.8,
-        ),
-      ),
+    try {
+      _mapController.move(center, zoom);
+    } catch (_) {
+      // Map controller can throw before initial render on slower devices.
+    }
+  }
+
+  Future<void> _focusOnPlace(OpenStreetMapPlace place) async {
+    _moveCamera(
+      center: LatLng(place.latitude, place.longitude),
+      zoom: 14.8,
+      place: place,
+    );
+  }
+
+  Future<void> _focusOnBakery(Bakery bakery) async {
+    _moveCamera(
+      center: LatLng(bakery.latitude, bakery.longitude),
+      zoom: 14.2,
+      bakery: bakery,
     );
   }
 
   Future<void> _focusOnCenter(LatLng target) async {
-    final controller = _controller;
-    if (controller == null) return;
-
-    await controller.animateCamera(
-      CameraUpdate.newCameraPosition(CameraPosition(target: target, zoom: 12)),
-    );
+    _moveCamera(center: target, zoom: 12);
   }
 
   void _onSearchChanged(String value) {
@@ -131,16 +118,6 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
 
-    if (_googleMapsApiKey.trim().isEmpty ||
-        _googleMapsApiKey.contains(AppConstants.mapsApiKeyPlaceholder)) {
-      setState(() {
-        _placesError =
-            'Google Maps key is missing for place search. Add GOOGLE_MAPS_API_KEY.';
-        _placesResults = const [];
-      });
-      return;
-    }
-
     setState(() {
       _isSearchingPlaces = true;
       _placesError = null;
@@ -149,51 +126,23 @@ class _MapScreenState extends State<MapScreen> {
 
     try {
       final position = provider.userPosition;
-      final bias = position == null
-          ? null
-          : LocationBias.circle(
-              center: PlaceCoordinates(
-                latitude: position.latitude,
-                longitude: position.longitude,
-              ),
-              radiusMeters: 15000,
-            );
-
-      final results = await _placesClient.searchText(
-        TextSearchRequest(
-          textQuery: query,
-          fields: const {
-            PlaceField.id,
-            PlaceField.displayName,
-            PlaceField.formattedAddress,
-            PlaceField.location,
-            PlaceField.googleMapsUri,
-            PlaceField.rating,
-            PlaceField.userRatingCount,
-            PlaceField.primaryType,
-            PlaceField.primaryTypeDisplayName,
-          },
-          locationBias: bias,
-          maxResultCount: 20,
-        ),
+      final results = await _placesService.search(
+        query: query,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+        limit: 20,
       );
-
-      final placesWithLocation = results
-          .where((place) => place.location != null)
-          .toList(growable: false);
 
       if (!mounted) return;
       setState(() {
-        _placesResults = placesWithLocation;
-        _placesError = placesWithLocation.isEmpty
-            ? 'No places found for "$query".'
-            : null;
+        _placesResults = results;
+        _placesError = results.isEmpty ? 'No places found for "$query".' : null;
       });
 
-      if (placesWithLocation.isNotEmpty) {
-        await _focusOnPlace(placesWithLocation.first);
+      if (results.isNotEmpty) {
+        await _focusOnPlace(results.first);
       }
-    } on PlacesException catch (error) {
+    } on OpenStreetMapPlaceSearchException catch (error) {
       if (!mounted) return;
       setState(() {
         _placesError = error.message;
@@ -202,7 +151,7 @@ class _MapScreenState extends State<MapScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _placesError = 'Could not search Google Maps places right now.';
+        _placesError = 'Could not search OpenStreetMap places right now.';
         _placesResults = const [];
       });
     } finally {
@@ -266,13 +215,14 @@ class _MapScreenState extends State<MapScreen> {
         : _applyMapSearch(baseBakeries, _mapQuery);
 
     final target = provider.userPosition == null
-        ? AppConstants.gurugramCenter
+        ? const LatLng(
+            AppConstants.gurugramLatitude,
+            AppConstants.gurugramLongitude,
+          )
         : LatLng(
             provider.userPosition!.latitude,
             provider.userPosition!.longitude,
           );
-    final isWebMapsUnavailable = kIsWeb && !hasGoogleMapsJsApi();
-    final hasPlaceholderKey = kIsWeb && hasPlaceholderGoogleMapsKey();
 
     final selectedBakery =
         _selectedBakery != null &&
@@ -287,47 +237,60 @@ class _MapScreenState extends State<MapScreen> {
         : null;
 
     final localMarkers = visibleBakeries.map((bakery) {
+      final isSelected = selectedBakery?.id == bakery.id;
       return Marker(
-        markerId: MarkerId('local_${bakery.id}'),
-        position: bakery.position,
-        infoWindow: InfoWindow(
-          title: bakery.name,
-          snippet: bakery.distanceKm == null
-              ? '${bakery.rating} stars'
-              : '${bakery.rating} stars - ${bakery.distanceKm!.toStringAsFixed(1)} km away',
+        point: LatLng(bakery.latitude, bakery.longitude),
+        width: 46,
+        height: 46,
+        child: _MapMarker(
+          icon: Icons.bakery_dining_rounded,
+          color: AppColors.warmBrown,
+          isSelected: isSelected,
+          onTap: () => _focusOnBakery(bakery),
         ),
-        onTap: () => setState(() {
-          _selectedBakery = bakery;
-          _selectedPlace = null;
-        }),
       );
     });
 
-    final placesMarkers = _placesResults
-        .where((place) => place.location != null)
-        .map((place) {
-          final location = place.location!;
-          return Marker(
-            markerId: MarkerId('place_${place.id}'),
-            position: LatLng(location.latitude, location.longitude),
-            infoWindow: InfoWindow(
-              title: place.displayName?.text ?? 'Place',
-              snippet:
-                  place.formattedAddress ??
-                  place.primaryType ??
-                  'Google Maps place',
-            ),
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueAzure,
-            ),
-            onTap: () => setState(() {
-              _selectedPlace = place;
-              _selectedBakery = null;
-            }),
-          );
-        });
+    final placeMarkers = _placesResults.map((place) {
+      final isSelected = selectedPlace?.id == place.id;
+      return Marker(
+        point: LatLng(place.latitude, place.longitude),
+        width: 46,
+        height: 46,
+        child: _MapMarker(
+          icon: Icons.place_rounded,
+          color: Colors.blue.shade700,
+          isSelected: isSelected,
+          onTap: () => _focusOnPlace(place),
+        ),
+      );
+    });
 
-    final allMarkers = <Marker>{...localMarkers, ...placesMarkers};
+    final userMarker = provider.userPosition == null
+        ? const <Marker>[]
+        : <Marker>[
+            Marker(
+              point: LatLng(
+                provider.userPosition!.latitude,
+                provider.userPosition!.longitude,
+              ),
+              width: 24,
+              height: 24,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+            ),
+          ];
+
+    final allMarkers = <Marker>[
+      ...localMarkers,
+      ...placeMarkers,
+      ...userMarker,
+    ];
     final hasPreview = selectedPlace != null || selectedBakery != null;
 
     return Scaffold(
@@ -349,8 +312,6 @@ class _MapScreenState extends State<MapScreen> {
       ),
       body: provider.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : isWebMapsUnavailable
-          ? _WebMapsSetupError(hasPlaceholderKey: hasPlaceholderKey)
           : Column(
               children: [
                 if (isRemoteSearchMode)
@@ -365,21 +326,38 @@ class _MapScreenState extends State<MapScreen> {
                 Expanded(
                   child: Stack(
                     children: [
-                      GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: target,
-                          zoom: 12,
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter: target,
+                          initialZoom: 12,
+                          onTap: (tapPosition, point) => setState(() {
+                            _selectedBakery = null;
+                            _selectedPlace = null;
+                          }),
                         ),
-                        myLocationEnabled: provider.userPosition != null,
-                        myLocationButtonEnabled: false,
-                        zoomControlsEnabled: false,
-                        mapToolbarEnabled: true,
-                        markers: allMarkers,
-                        onTap: (_) => setState(() {
-                          _selectedBakery = null;
-                          _selectedPlace = null;
-                        }),
-                        onMapCreated: (controller) => _controller = controller,
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName:
+                                'com.example.thepastrypath',
+                            maxNativeZoom: 19,
+                          ),
+                          MarkerLayer(markers: allMarkers),
+                          RichAttributionWidget(
+                            attributions: [
+                              TextSourceAttribution(
+                                'OpenStreetMap contributors',
+                                onTap: () => launchUrl(
+                                  Uri.parse(
+                                    'https://www.openstreetmap.org/copyright',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                       Positioned(
                         right: 18,
@@ -398,10 +376,10 @@ class _MapScreenState extends State<MapScreen> {
                           right: 18,
                           bottom: 22,
                           child: PointerInterceptor(
-                            child: _GooglePlacePreview(
+                            child: _OpenStreetMapPlacePreview(
                               place: selectedPlace,
                               onOpenMaps: () =>
-                                  _openPlaceInGoogleMaps(selectedPlace),
+                                  _openPlaceInOpenStreetMap(selectedPlace),
                             ),
                           ),
                         )
@@ -449,7 +427,7 @@ class _MapSearchField extends StatelessWidget {
       onChanged: onChanged,
       onSubmitted: onSubmitted,
       decoration: InputDecoration(
-        hintText: 'Search any cafe/place on Google Maps',
+        hintText: 'Search any cafe/place on OpenStreetMap',
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(vertical: 0),
@@ -462,7 +440,7 @@ class _MapSearchField extends StatelessWidget {
                   IconButton(
                     onPressed: onSearchTap,
                     icon: const Icon(Icons.travel_explore_rounded),
-                    tooltip: 'Search on Google Maps',
+                    tooltip: 'Search on OpenStreetMap',
                   ),
                   IconButton(
                     onPressed: onClear,
@@ -493,9 +471,9 @@ class _PlaceResultStrip extends StatelessWidget {
   final String query;
   final bool isLoading;
   final String? errorMessage;
-  final List<PlaceData> places;
+  final List<OpenStreetMapPlace> places;
   final String? selectedId;
-  final ValueChanged<PlaceData> onSelect;
+  final ValueChanged<OpenStreetMapPlace> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -503,7 +481,7 @@ class _PlaceResultStrip extends StatelessWidget {
 
     if (isLoading) {
       content = const Text(
-        'Searching Google Maps places...',
+        'Searching OpenStreetMap places...',
         style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700),
       );
     } else if (errorMessage != null) {
@@ -528,9 +506,12 @@ class _PlaceResultStrip extends StatelessWidget {
           separatorBuilder: (_, index) => const SizedBox(width: 8),
           itemBuilder: (context, index) {
             final place = places[index];
-            final name = place.displayName?.text ?? 'Place';
             return ChoiceChip(
-              label: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              label: Text(
+                place.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               selected: place.id == selectedId,
               onSelected: (_) => onSelect(place),
             );
@@ -547,7 +528,7 @@ class _PlaceResultStrip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Google Maps search: "$query"',
+            'OpenStreetMap search: "$query"',
             style: const TextStyle(
               color: AppColors.muted,
               fontWeight: FontWeight.w700,
@@ -561,91 +542,54 @@ class _PlaceResultStrip extends StatelessWidget {
   }
 }
 
-class _WebMapsSetupError extends StatelessWidget {
-  const _WebMapsSetupError({required this.hasPlaceholderKey});
+class _MapMarker extends StatelessWidget {
+  const _MapMarker({
+    required this.icon,
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
 
-  final bool hasPlaceholderKey;
+  final IconData icon;
+  final Color color;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final keyMessage = hasPlaceholderKey
-        ? 'Replace YOUR_GOOGLE_MAPS_API_KEY in web/index.html with your real key.'
-        : 'Check the web key in web/index.html and verify Maps JavaScript API is enabled.';
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.espresso.withValues(alpha: 0.08),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.map_rounded, color: AppColors.warmBrown),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Google Maps JS failed to load',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                keyMessage,
-                style: const TextStyle(
-                  color: AppColors.espresso,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Make sure Maps JavaScript API and Places API (New) are enabled, and localhost is allowed in key restrictions.',
-                style: TextStyle(
-                  color: AppColors.muted,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: BoxDecoration(
+          color: isSelected ? color : color.withValues(alpha: 0.8),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: isSelected ? 2.4 : 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: isSelected ? 12 : 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
+        child: Icon(icon, color: Colors.white, size: isSelected ? 24 : 22),
       ),
     );
   }
 }
 
-class _GooglePlacePreview extends StatelessWidget {
-  const _GooglePlacePreview({required this.place, required this.onOpenMaps});
+class _OpenStreetMapPlacePreview extends StatelessWidget {
+  const _OpenStreetMapPlacePreview({
+    required this.place,
+    required this.onOpenMaps,
+  });
 
-  final PlaceData place;
+  final OpenStreetMapPlace place;
   final VoidCallback onOpenMaps;
 
   @override
   Widget build(BuildContext context) {
-    final placeName = place.displayName?.text ?? 'Google Maps place';
-    final subtitle =
-        place.formattedAddress ??
-        place.primaryTypeDisplayName?.text ??
-        place.primaryType ??
-        'Open in Google Maps';
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -677,7 +621,7 @@ class _GooglePlacePreview extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  placeName,
+                  place.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -685,10 +629,10 @@ class _GooglePlacePreview extends StatelessWidget {
                     fontSize: 17,
                   ),
                 ),
-                Text(subtitle, style: const TextStyle(color: AppColors.muted)),
-                if (place.rating != null)
+                Text(place.subtitle, style: const TextStyle(color: AppColors.muted)),
+                if (place.category != null)
                   Text(
-                    '${place.rating!.toStringAsFixed(1)} stars${place.userRatingCount == null ? '' : ' (${place.userRatingCount})'}',
+                    place.category!,
                     style: const TextStyle(
                       color: AppColors.espresso,
                       fontWeight: FontWeight.w700,
