@@ -55,15 +55,31 @@ class BakeryCard extends StatelessWidget {
                     height: compact ? 132 : 168,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: AppColors.cream),
-                    errorWidget: (_, __, ___) => Container(
+                    placeholder: (context, url) =>
+                        Container(color: AppColors.cream),
+                    errorWidget: (context, url, error) => Container(
                       color: AppColors.cream,
-                      child: const Icon(Icons.bakery_dining, color: AppColors.warmBrown, size: 44),
+                      child: const Icon(
+                        Icons.bakery_dining,
+                        color: AppColors.warmBrown,
+                        size: 44,
+                      ),
                     ),
                   ),
                 ),
-                Positioned(top: 12, left: 12, child: RatingBadge(rating: bakery.rating)),
-                Positioned(top: 10, right: 10, child: FavoriteButton(isFavorite: isFavorite, onTap: onFavorite)),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: RatingBadge(rating: bakery.rating),
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: FavoriteButton(
+                    isFavorite: isFavorite,
+                    onTap: onFavorite,
+                  ),
+                ),
               ],
             ),
             Padding(
@@ -75,29 +91,48 @@ class BakeryCard extends StatelessWidget {
                     bakery.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.ink),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.ink,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     bakery.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.muted, height: 1.25),
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      height: 1.25,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.place_rounded, size: 16, color: AppColors.warmBrown),
+                      const Icon(
+                        Icons.place_rounded,
+                        size: 16,
+                        color: AppColors.warmBrown,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          bakery.distanceKm == null ? bakery.address : '${bakery.distanceKm!.toStringAsFixed(1)} km away',
+                          bakery.distanceKm == null
+                              ? bakery.address
+                              : '${bakery.distanceKm!.toStringAsFixed(1)} km away',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.warmBrown),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.warmBrown,
+                          ),
                         ),
                       ),
-                      Text(bakery.openUntil, style: const TextStyle(color: AppColors.muted)),
+                      Text(
+                        bakery.openUntil,
+                        style: const TextStyle(color: AppColors.muted),
+                      ),
                     ],
                   ),
                 ],

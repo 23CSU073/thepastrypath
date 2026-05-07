@@ -6,7 +6,6 @@ import '../../data/models/bakery.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bakery_provider.dart';
 import '../../routes/app_routes.dart';
-import '../bakery_details/bakery_details_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -24,7 +23,9 @@ class ProfileScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [AppColors.warmBrown, AppColors.espresso]),
+              gradient: const LinearGradient(
+                colors: [AppColors.warmBrown, AppColors.espresso],
+              ),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Row(
@@ -32,7 +33,11 @@ class ProfileScreen extends StatelessWidget {
                 const CircleAvatar(
                   radius: 34,
                   backgroundColor: AppColors.cream,
-                  child: Icon(Icons.person_rounded, color: AppColors.warmBrown, size: 36),
+                  child: Icon(
+                    Icons.person_rounded,
+                    color: AppColors.warmBrown,
+                    size: 36,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -41,9 +46,16 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       const Text(
                         'Bakery Explorer',
-                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                      Text(auth.user?.email ?? 'Guest profile', style: const TextStyle(color: Colors.white70)),
+                      Text(
+                        auth.user?.email ?? 'Guest profile',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
                     ],
                   ),
                 ),
@@ -75,7 +87,9 @@ class ProfileScreen extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: () async {
               await auth.signOut();
-              if (context.mounted) Navigator.pushReplacementNamed(context, AppRoutes.auth);
+              if (context.mounted) {
+                Navigator.pushReplacementNamed(context, AppRoutes.auth);
+              }
             },
             icon: const Icon(Icons.logout_rounded),
             label: const Text('Logout'),
@@ -94,10 +108,16 @@ class ProfileScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Recent searches', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+            const Text(
+              'Recent searches',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+            ),
             const SizedBox(height: 12),
             if (provider.recentSearches.isEmpty)
-              const Text('Search for a cafe or bakery and it will appear here.', style: TextStyle(color: AppColors.muted))
+              const Text(
+                'Search for a cafe or bakery and it will appear here.',
+                style: TextStyle(color: AppColors.muted),
+              )
             else
               Wrap(
                 spacing: 8,
@@ -132,11 +152,20 @@ class ProfileScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Your profile', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+            const Text(
+              'Your profile',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+            ),
             const SizedBox(height: 14),
             _ProfileRow(label: 'Email', value: auth.user?.email ?? 'Guest'),
-            _ProfileRow(label: 'Recently viewed', value: '${bakeryProvider.recentlyViewed.length} places'),
-            _ProfileRow(label: 'Searches saved', value: '${bakeryProvider.recentSearches.length} searches'),
+            _ProfileRow(
+              label: 'Recently viewed',
+              value: '${bakeryProvider.recentlyViewed.length} places',
+            ),
+            _ProfileRow(
+              label: 'Searches saved',
+              value: '${bakeryProvider.recentSearches.length} searches',
+            ),
             const SizedBox(height: 12),
             const Text(
               'Taste note: You are building a soft spot for coffee cafes, pastry counters, and cozy tables.',
@@ -198,7 +227,13 @@ class _ProfileRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Text(label, style: const TextStyle(color: AppColors.muted, fontWeight: FontWeight.w800)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const Spacer(),
           Flexible(
             child: Text(
@@ -243,7 +278,12 @@ class _ReviewSheetState extends State<ReviewSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.viewInsetsOf(context).bottom + 24),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 24,
+      ),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 260),
         child: _submitted
@@ -251,9 +291,16 @@ class _ReviewSheetState extends State<ReviewSheet> {
                 key: ValueKey('review-success'),
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_rounded, color: AppColors.sage, size: 76),
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.sage,
+                    size: 76,
+                  ),
                   SizedBox(height: 12),
-                  Text('Review saved', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                  Text(
+                    'Review saved',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                  ),
                   Text('Thanks for helping other pastry people choose well.'),
                 ],
               )
@@ -262,13 +309,21 @@ class _ReviewSheetState extends State<ReviewSheet> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Leave a review', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                  const Text(
+                    'Leave a review',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                  ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<Bakery>(
-                    value: _selected,
-                    decoration: const InputDecoration(labelText: 'Cafe or bakery'),
+                    initialValue: _selected,
+                    decoration: const InputDecoration(
+                      labelText: 'Cafe or bakery',
+                    ),
                     items: widget.bakeries.map((bakery) {
-                      return DropdownMenuItem(value: bakery, child: Text(bakery.name));
+                      return DropdownMenuItem(
+                        value: bakery,
+                        child: Text(bakery.name),
+                      );
                     }).toList(),
                     onChanged: (value) => setState(() => _selected = value),
                   ),
@@ -279,7 +334,9 @@ class _ReviewSheetState extends State<ReviewSheet> {
                       return IconButton(
                         onPressed: () => setState(() => _rating = value),
                         icon: Icon(
-                          value <= _rating ? Icons.star_rounded : Icons.star_border_rounded,
+                          value <= _rating
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
                           color: AppColors.orange,
                           size: 30,
                         ),

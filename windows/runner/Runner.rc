@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "thepastrypath" "\0"
+            VALUE "CompanyName", "The Pastry Path" "\0"
+            VALUE "FileDescription", "The Pastry Path" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "thepastrypath" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 The Pastry Path. All rights reserved." "\0"
             VALUE "OriginalFilename", "thepastrypath.exe" "\0"
-            VALUE "ProductName", "thepastrypath" "\0"
+            VALUE "ProductName", "The Pastry Path" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

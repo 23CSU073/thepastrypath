@@ -1,48 +1,73 @@
 # The Pastry Path
 
-The Pastry Path is a production-style Flutter + Firebase app for discovering nearby bakeries and cafes, saving favorites, viewing menus and reviews, reserving tables, exploring Google Maps markers, and reading trend analytics.
+The Pastry Path is a cafe and bakery discovery app built with Flutter, Firebase, Provider, location services, Google Maps, recommendations, reservations, and bakery trend insights. It narrows the Foodie Finder brief into a pastry-focused experience for finding nearby bakeries, comparing menus, saving favorites, reading reviews, and reserving tables.
 
-## Folder Structure
+## Features
+
+- Email/password login and signup with Firebase Auth.
+- Nearby bakery discovery with category, mood, and search filters.
+- Bakery detail pages with photo gallery, menu items, reviews, directions, and reservations.
+- Favorites with offline caching.
+- Location-aware distance calculation for Gurugram bakeries.
+- Map view with Google Maps on Android, iOS, and web, including map search for bakery names and areas.
+- Reservation flow backed by Firestore; mock success is disabled so confirmations only appear after a real save.
+- Profile review flow for rating visited cafes and bakeries.
+- Insight dashboard with charts for category popularity and trend interpretation.
+
+## Extensions Beyond Base Brief
+
+- Personalized recommendation engine: ranks bakeries using rating, popularity, trend score, favorite categories, visited categories, and distance.
+- Insight layer: charts convert bakery data into user-facing trends, helping users understand which pastry categories and venues are most popular.
+- Offline-first demo behavior: cached bakeries, favorites, recently viewed items, and seed data keep the app usable when Firestore is unavailable.
+
+## Screenshots
+
+Add final screenshots before submission:
+
+- `docs/screenshots/home.png` - discovery feed, search, filters, and recommendations.
+- `docs/screenshots/details.png` - bakery detail page with menu and reservation button.
+- `docs/screenshots/map.png` - bakery map with pins.
+- `docs/screenshots/insights.png` - chart-based insight screen.
+- `docs/screenshots/profile.png` - profile, review, and logout actions.
+
+## Architecture
+
+```text
+UI screens/widgets
+  -> Provider state objects
+    -> Repository layer
+      -> Firebase Auth / Firestore / SharedPreferences / Location
+```
 
 ```text
 lib/
   core/
-    constants/
-    services/
-    theme/
-    utils/
+    constants/       app-wide constants
+    services/        cache and location services
+    theme/           custom color and typography system
+    utils/           distance utilities
   data/
-    models/
-    repositories/
-  providers/
-  routes/
-  screens/
-    analytics/
-    auth/
-    bakery_details/
-    favorites/
-    home/
-    map/
-    profile/
-    splash/
-  widgets/
-  firebase_options.dart
-  main.dart
+    models/          Bakery, MenuItem, Review, Reservation
+    repositories/    Firebase and fallback data access
+  providers/         Auth, bakery, favorites, recommendations, reservations
+  routes/            route names
+  screens/           app screens by feature
+  widgets/           reusable UI components
 test/
   widget_test.dart
 ```
 
-## Setup
+## State Management
 
-1. Install Flutter and run `flutter pub get`.
-2. Configure Firebase with FlutterFire: `flutterfire configure`.
-3. Enable Firebase Auth email/password in Firebase Console.
-4. Enable Cloud Firestore and Firebase Storage.
-5. Add Google Maps keys:
-   - Android: pass `GOOGLE_MAPS_API_KEY` in Gradle properties or replace the manifest placeholder.
-   - Web: enable Maps JavaScript API for the Google API key in `web/index.html`.
-   - iOS: replace `GoogleMapsApiKey` in `ios/Runner/Info.plist`.
-6. Run: `flutter run`.
+The app uses Provider with clear separation between UI and business logic:
+
+- `AppAuthProvider`: login, signup, logout, remember-login state.
+- `BakeryProvider`: loading bakeries, search filters, category/mood filters, recently viewed state.
+- `FavoritesProvider`: favorite IDs and optimistic favorite toggles.
+- `RecommendationProvider`: personalized ranking and smart suggestion text.
+- `ReservationProvider`: Firestore reservation writes, saving state, and error messages.
+
+Screens read state with `watch` and trigger actions through providers. Repositories keep Firebase details out of the UI.
 
 ## Firebase Collections
 
@@ -70,20 +95,15 @@ test/
   "longitude": 77.0818,
   "openUntil": "11:00 PM",
   "menu": [
-    {"name": "Pistachio Cruffin", "price": 260, "category": "Pastries", "imageUrl": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&q=85"}
+    {
+      "name": "Pistachio Cruffin",
+      "price": 260,
+      "category": "Pastries",
+      "imageUrl": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&q=85"
+    }
   ]
 }
 ```
-
-## Architecture
-
-The app separates UI, business logic, and data:
-
-- Screens render state and route to details/reservation flows.
-- Providers own app state: auth, bakery browsing, favorites, recommendations, reservations.
-- Repositories isolate Firebase and fallback seeded data.
-- Core services handle location and offline caching.
-- Widgets provide reusable polished UI: `BakeryCard`, `FavoriteButton`, `AnimatedSearchBar`, `OfferBanner`, `RatingBadge`, `SkeletonLoader`.
 
 ## Recommendation Logic
 
@@ -98,11 +118,23 @@ score =
 (distanceWeight * 0.1)
 ```
 
-User preference is based on favorite categories and visited category counts. Distance weight favors nearby bakeries but still allows highly rated trending spots to appear.
+User preference comes from favorite categories and visited category counts. Distance weight favors nearby bakeries while still allowing highly rated trending spots to rank well.
 
-## Offline Support
+## Insight Layer
 
-`SharedPreferences` caches bakery lists, favorite IDs, visited categories, recently viewed bakeries, and remember-login preference. If Firestore is unavailable, cached data or realistic seed data is shown gracefully.
+The analytics screen answers: "What should I try next?"
+
+- Category distribution shows which bakery types dominate the available choices.
+- Trending scores highlight venues with strong popularity and review signals.
+- Progress indicators help users compare categories without opening every detail page.
+
+## Offline And Edge Cases
+
+- `SharedPreferences` caches bakery lists, favorite IDs, visited categories, recently viewed bakeries, and remember-login preference.
+- If Firestore is unavailable, cached data or seed data is shown.
+- Empty states are shown for no favorites and no matching search/filter results.
+- Reservation errors show snackbars instead of fake success.
+- Invalid login form input is blocked with field-level validation.
 
 ## Testing
 
@@ -112,24 +144,74 @@ Run:
 flutter test
 ```
 
-Included tests cover login validation, favorite button toggling, and recommendation ranking.
+Coverage included:
+
+- Widget test: login form validates invalid email/password.
+- Widget test: favorite button toggles icon state.
+- Widget test: empty state communicates the no-saved-bakeries edge case.
+- Unit test: recommendation engine ranks favorite and high-scoring bakeries higher.
+
+## Manual Test Scenarios
+
+Happy path:
+
+- Sign up or log in.
+- Browse bakeries on Home.
+- Search for a bakery item or category.
+- Open a bakery detail page.
+- Save it as favorite.
+- Open map and select a bakery pin.
+- Reserve a table and confirm Firestore writes successfully.
+- Open Insights and review chart trends.
+
+Edge cases:
+
+- Submit login with invalid email/password.
+- Search for a term with no matching bakeries.
+- Open Favorites before saving anything.
+- Disable internet or block Firestore and confirm cached/seed data appears.
+- Attempt reservation when Firestore rules reject writes and confirm an error snackbar appears.
+
+## Setup
+
+1. Install Flutter.
+2. Run `flutter pub get`.
+3. Configure Firebase with FlutterFire: `flutterfire configure`.
+4. Enable Firebase Auth email/password in Firebase Console.
+5. Enable Cloud Firestore.
+6. Add Google Maps keys:
+   - Android: add `GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY` to `android/local.properties` (or replace the manifest placeholder).
+   - Dart define (used by in-app Google Places text search): run with `--dart-define=GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY`.
+   - iOS: replace `GoogleMapsApiKey` in `ios/Runner/Info.plist`.
+   - Web: replace `YOUR_GOOGLE_MAPS_API_KEY` in the Google Maps script tag inside `web/index.html`.
+   - Google Cloud APIs to enable: `Maps JavaScript API`, `Maps SDK for Android`, `Maps SDK for iOS`, and `Places API (New)`.
+7. Run `flutter run --dart-define=GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY`.
 
 ## APK Build
 
 ```bash
 flutter clean
 flutter pub get
-flutter build apk --release
+flutter build apk --release --dart-define=GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY
 ```
 
-The APK will be generated in `build/app/outputs/flutter-apk/`.
+The APK is generated in `build/app/outputs/flutter-apk/`.
+
+## Deployment Readiness
+
+- App name: The Pastry Path.
+- Custom launcher icon: pastry and map-pin mark.
+- Android splash screen: themed pastel background with launcher mark.
+- Firebase config: included for the configured project.
+- Release APK: generate with the command above.
 
 ## Challenges Faced
 
 - Balancing Firebase-backed production structure with offline-first demo behavior.
 - Keeping maps usable while API keys are environment-specific.
-- Making recommendation logic deterministic enough to test while still feeling smart in the UI.
+- Preventing reservation mock mode from creating false success.
+- Making recommendation logic deterministic enough to test while still feeling personalized.
 
 ## AI Usage Disclosure
 
-This implementation was generated with AI assistance and then validated through dependency resolution and local test/analyzer attempts. Replace demo imagery and API placeholders before production release.
+AI tools were used to assist with Flutter implementation, debugging, code organization, README drafting, and generated local icon assets. The app was manually reviewed and modified for the bakery/cafe niche, Provider architecture, Firebase configuration, custom UI theme, map fallback, reservation behavior, and testing requirements.

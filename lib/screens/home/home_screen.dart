@@ -7,6 +7,7 @@ import '../../data/models/bakery.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bakery_provider.dart';
 import '../../providers/favorites_provider.dart';
+import '../../providers/grok_provider.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../widgets/animated_search_bar.dart';
 import '../../widgets/bakery_card.dart';
@@ -18,20 +19,43 @@ import '../bakery_details/bakery_details_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
+  static const String _defaultGroqPrompt = 'Good cafes near me';
+
   Future<void> _refresh(BuildContext context) async {
     await context.read<BakeryProvider>().load();
     if (!context.mounted) return;
     await context.read<RecommendationProvider>().compute(
-          bakeries: context.read<BakeryProvider>().bakeries,
-          favoriteIds: context.read<FavoritesProvider>().favoriteIds,
-        );
+      bakeries: context.read<BakeryProvider>().bakeries,
+      favoriteIds: context.read<FavoritesProvider>().favoriteIds,
+    );
   }
 
   void _openDetails(BuildContext context, Bakery bakery) {
     context.read<BakeryProvider>().markViewed(bakery);
-    Navigator.of(context).push(PageRouteBuilder(
-      pageBuilder: (_, animation, __) => FadeTransition(opacity: animation, child: BakeryDetailsScreen(bakery: bakery)),
-    ));
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => FadeTransition(
+          opacity: animation,
+          child: BakeryDetailsScreen(bakery: bakery),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _fetchGrokCoffeeSuggestions(
+    BuildContext context,
+    String prompt,
+  ) async {
+    final bakeryProvider = context.read<BakeryProvider>();
+    final position = bakeryProvider.userPosition;
+    final promptText = prompt.trim().isEmpty
+        ? _defaultGroqPrompt
+        : prompt.trim();
+    await context.read<GrokProvider>().fetchCoffeeSuggestions(
+      prompt: promptText,
+      latitude: position?.latitude,
+      longitude: position?.longitude,
+    );
   }
 
   @override
@@ -39,6 +63,7 @@ class HomeScreen extends StatelessWidget {
     final user = context.watch<AppAuthProvider>().user;
     final bakeryProvider = context.watch<BakeryProvider>();
     final favorites = context.watch<FavoritesProvider>();
+    final grok = context.watch<GrokProvider>();
     final recommendations = context.watch<RecommendationProvider>();
     final isSearching = bakeryProvider.searchQuery.trim().isNotEmpty;
 
@@ -50,7 +75,12 @@ class HomeScreen extends StatelessWidget {
           slivers: [
             SliverToBoxAdapter(
               child: Container(
-                padding: EdgeInsets.fromLTRB(22, MediaQuery.paddingOf(context).top + 22, 22, 20),
+                padding: EdgeInsets.fromLTRB(
+                  22,
+                  MediaQuery.paddingOf(context).top + 22,
+                  22,
+                  20,
+                ),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [AppColors.cream, AppColors.blush],
@@ -92,7 +122,19 @@ class HomeScreen extends StatelessWidget {
             else ...[
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                sliver: SliverToBoxAdapter(child: _Chips(provider: bakeryProvider)),
+                sliver: SliverToBoxAdapter(
+                  child: _Chips(provider: bakeryProvider),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                sliver: SliverToBoxAdapter(
+                  child: _GrokCoffeeSection(
+                    provider: grok,
+                    onFetch: (prompt) =>
+                        _fetchGrokCoffeeSuggestions(context, prompt),
+                  ),
+                ),
               ),
               if (!isSearching) ...[
                 const SliverPadding(
@@ -110,7 +152,9 @@ class HomeScreen extends StatelessWidget {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
                   sliver: SliverToBoxAdapter(
-                    child: _SmartSuggestion(text: recommendations.smartSuggestion),
+                    child: _SmartSuggestion(
+                      text: recommendations.smartSuggestion,
+                    ),
                   ),
                 ),
                 SliverToBoxAdapter(
@@ -147,10 +191,17 @@ class HomeScreen extends StatelessWidget {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 100),
                 sliver: bakeryProvider.filtered.isEmpty
-                    ? const SliverToBoxAdapter(child: EmptyState(title: 'No bakeries match', message: 'Try another category, mood, or search term.'))
+                    ? const SliverToBoxAdapter(
+                        child: EmptyState(
+                          title: 'No bakeries match',
+                          message:
+                              'Try another category, mood, or search term.',
+                        ),
+                      )
                     : SliverList.separated(
                         itemCount: bakeryProvider.filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 16),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 16),
                         itemBuilder: (context, index) {
                           final bakery = bakeryProvider.filtered[index];
                           return BakeryCard(
@@ -158,10 +209,17 @@ class HomeScreen extends StatelessWidget {
                             compact: true,
                             isFavorite: favorites.isFavorite(bakery.id),
                             onFavorite: () async {
-                              await favorites.toggle(context.read<AppAuthProvider>().user?.uid, bakery.id);
+                              await favorites.toggle(
+                                context.read<AppAuthProvider>().user?.uid,
+                                bakery.id,
+                              );
                               if (context.mounted) {
-                                await context.read<RecommendationProvider>().compute(
-                                      bakeries: context.read<BakeryProvider>().bakeries,
+                                await context
+                                    .read<RecommendationProvider>()
+                                    .compute(
+                                      bakeries: context
+                                          .read<BakeryProvider>()
+                                          .bakeries,
                                       favoriteIds: favorites.favoriteIds,
                                     );
                               }
@@ -228,7 +286,12 @@ class _Chips extends StatelessWidget {
 }
 
 class _HorizontalSection extends StatelessWidget {
-  const _HorizontalSection({required this.title, required this.bakeries, required this.favorites, required this.onTap});
+  const _HorizontalSection({
+    required this.title,
+    required this.bakeries,
+    required this.favorites,
+    required this.onTap,
+  });
 
   final String title;
   final List<Bakery> bakeries;
@@ -245,7 +308,10 @@ class _HorizontalSection extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            ),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -254,13 +320,16 @@ class _HorizontalSection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               scrollDirection: Axis.horizontal,
               itemCount: bakeries.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 16),
+              separatorBuilder: (context, index) => const SizedBox(width: 16),
               itemBuilder: (context, index) {
                 final bakery = bakeries[index];
                 return BakeryCard(
                   bakery: bakery,
                   isFavorite: favorites.isFavorite(bakery.id),
-                  onFavorite: () => favorites.toggle(context.read<AppAuthProvider>().user?.uid, bakery.id),
+                  onFavorite: () => favorites.toggle(
+                    context.read<AppAuthProvider>().user?.uid,
+                    bakery.id,
+                  ),
                   onTap: () => onTap(bakery),
                 );
               },
@@ -290,7 +359,177 @@ class _SmartSuggestion extends StatelessWidget {
         children: [
           const Icon(Icons.auto_awesome_rounded, color: AppColors.orange),
           const SizedBox(width: 12),
-          Expanded(child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.espresso))),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppColors.espresso,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GrokCoffeeSection extends StatefulWidget {
+  const _GrokCoffeeSection({required this.provider, required this.onFetch});
+
+  final GrokProvider provider;
+  final Future<void> Function(String prompt) onFetch;
+
+  @override
+  State<_GrokCoffeeSection> createState() => _GrokCoffeeSectionState();
+}
+
+class _GrokCoffeeSectionState extends State<_GrokCoffeeSection> {
+  static const String _defaultPrompt = '';
+  late final TextEditingController _promptController;
+
+  @override
+  void initState() {
+    super.initState();
+    _promptController = TextEditingController(text: _defaultPrompt);
+  }
+
+  @override
+  void dispose() {
+    _promptController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitPrompt() {
+    return widget.onFetch(_promptController.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = widget.provider;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.espresso.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.coffee_rounded, color: AppColors.warmBrown),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Ask Groq for nearby coffee',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: provider.isLoading ? null : _submitPrompt,
+                icon: provider.isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome_rounded),
+                label: const Text('Find'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _promptController,
+            minLines: 1,
+            maxLines: 3,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => _submitPrompt(),
+            decoration: InputDecoration(
+              hintText: 'Type a custom prompt for Groq...',
+              filled: true,
+              fillColor: AppColors.cream.withValues(alpha: 0.45),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              prefixIcon: const Icon(Icons.edit_note_rounded),
+            ),
+          ),
+          if (provider.lastPrompt.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Prompt: ${provider.lastPrompt}',
+              style: const TextStyle(color: AppColors.muted),
+            ),
+          ],
+          if (provider.errorMessage != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              provider.errorMessage!,
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (provider.places.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ListView.separated(
+              itemCount: provider.places.length,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              separatorBuilder: (_, index) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final place = provider.places[index];
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.cream.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        place.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
+                      if (place.area.isNotEmpty)
+                        Text(
+                          place.area,
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      if (place.why.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          place.why,
+                          style: const TextStyle(
+                            color: AppColors.espresso,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

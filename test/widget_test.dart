@@ -5,6 +5,7 @@ import 'package:thepastrypath/data/repositories/bakery_repository.dart';
 import 'package:thepastrypath/providers/auth_provider.dart';
 import 'package:thepastrypath/providers/recommendation_provider.dart';
 import 'package:thepastrypath/screens/auth/auth_screen.dart';
+import 'package:thepastrypath/widgets/empty_state.dart';
 import 'package:thepastrypath/widgets/favorite_button.dart';
 
 void main() {
@@ -40,6 +41,30 @@ void main() {
     await tester.tap(find.byType(FavoriteButton));
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+  });
+
+  testWidgets('empty state communicates no saved bakeries edge case', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: EmptyState(
+            title: 'No favorites yet',
+            message:
+                'Tap the heart on a bakery card and it will stay available offline.',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('No favorites yet'), findsOneWidget);
+    expect(
+      find.text(
+        'Tap the heart on a bakery card and it will stay available offline.',
+      ),
+      findsOneWidget,
+    );
   });
 
   test('recommendation engine ranks favorites and strong scores higher', () {

@@ -276,8 +276,8 @@ class _Gallery extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: images.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, index) => ClipRRect(
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        itemBuilder: (context, index) => ClipRRect(
           borderRadius: BorderRadius.circular(18),
           child: CachedNetworkImage(
             imageUrl: images[index],
