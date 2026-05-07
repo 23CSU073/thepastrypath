@@ -1,30 +1,55 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:thepastrypath/main.dart';
+import 'package:provider/provider.dart';
+import 'package:thepastrypath/data/repositories/bakery_repository.dart';
+import 'package:thepastrypath/providers/auth_provider.dart';
+import 'package:thepastrypath/providers/recommendation_provider.dart';
+import 'package:thepastrypath/screens/auth/auth_screen.dart';
+import 'package:thepastrypath/widgets/favorite_button.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('login form validates email and password', (tester) async {
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AppAuthProvider(),
+        child: const MaterialApp(home: AuthScreen()),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.byKey(const ValueKey('auth-submit-button')));
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Enter a valid email.'), findsOneWidget);
+    expect(find.text('Use at least 6 characters.'), findsOneWidget);
+  });
+
+  testWidgets('animated favorite button toggles icon state', (tester) async {
+    var favorite = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) => FavoriteButton(
+            isFavorite: favorite,
+            onTap: () => setState(() => favorite = !favorite),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
+    await tester.tap(find.byType(FavoriteButton));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+  });
+
+  test('recommendation engine ranks favorites and strong scores higher', () {
+    final ranked = RecommendationProvider.rankBakeries(
+      bakeries: seedBakeries,
+      favoriteIds: {'sweet-crumbs'},
+      categoryVisits: {'Pastries': 4, 'Coffee': 1},
+    );
+
+    expect(ranked.first.category, 'Pastries');
+    expect(ranked.take(3).map((bakery) => bakery.id), contains('sweet-crumbs'));
   });
 }

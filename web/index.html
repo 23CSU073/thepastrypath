@@ -18,29 +18,40 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="The Pastry Path - Your baking journey starts here.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="thepastrypath">
+  <meta name="apple-mobile-web-app-title" content="The Pastry Path">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>thepastrypath</title>
+  <title>The Pastry Path</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Firebase JS SDK (Required for Flutter Web Auth & Firestore) -->
+  <script src="https://www.gstatic.com/firebasejs/11.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.7.1/firebase-database-compat.js"></script>
+
+  <!-- Initialize Firebase with your project config -->
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyBfAbtHL4dzne9TtrpefWFrOT1FA2k__X4",
+      authDomain: "thepastrypath-app.firebaseapp.com",
+      databaseURL: "https://thepastrypath-app-default-rtdb.firebaseio.com",
+      projectId: "thepastrypath-app",
+      storageBucket: "thepastrypath-app.firebasestorage.app",
+      messagingSenderId: "493494009350",
+      appId: "1:493494009350:web:236f8172671d9d67740d87"
+    });
+  </script>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

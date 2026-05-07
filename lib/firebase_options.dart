@@ -46,6 +46,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '493494009350',
     projectId: 'thepastrypath-app',
     authDomain: 'thepastrypath-app.firebaseapp.com',
+    databaseURL: 'https://thepastrypath-app-default-rtdb.firebaseio.com',
     storageBucket: 'thepastrypath-app.firebasestorage.app',
   );
 
