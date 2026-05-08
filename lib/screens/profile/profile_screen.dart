@@ -316,23 +316,33 @@ class _ReviewSheetState extends State<ReviewSheet> {
                   const SizedBox(height: 14),
                   DropdownButtonFormField<Bakery>(
                     initialValue: _selected,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Cafe or bakery',
                     ),
                     items: widget.bakeries.map((bakery) {
                       return DropdownMenuItem(
                         value: bakery,
-                        child: Text(bakery.name),
+                        child: Text(
+                          bakery.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) => setState(() => _selected = value),
                   ),
                   const SizedBox(height: 14),
-                  Row(
+                  Wrap(
+                    spacing: 4,
                     children: List.generate(5, (index) {
                       final value = index + 1;
                       return IconButton(
                         onPressed: () => setState(() => _rating = value),
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        splashRadius: 20,
                         icon: Icon(
                           value <= _rating
                               ? Icons.star_rounded
