@@ -368,13 +368,34 @@ Edge cases:
 1. Install Flutter.
 2. Run `flutter pub get`.
 3. Configure Firebase with FlutterFire: `flutterfire configure`.
-4. Enable Firebase Auth email/password in Firebase Console.
-5. Enable Cloud Firestore.
-6. OpenStreetMap/Nominatim setup:
+4. Enable Firebase Auth providers in Firebase Console:
+   - Email/password
+   - Google (Google Sign-In)
+5. Google Sign-In (Android) setup:
+   - Ensure the Firebase Android app package name matches `com.example.thepastrypath` (see `android/app/build.gradle.kts`).
+   - Generate SHA fingerprints for the signing key you run with (debug and later release):
+
+     ```bash
+     cd android
+     ./gradlew signingReport
+     ```
+
+     On Windows PowerShell you can also run:
+
+     ```powershell
+     cd android
+     .\\gradlew signingReport
+     ```
+
+   - Firebase Console -> Project settings -> Your apps -> Android -> add **SHA-1** (and ideally **SHA-256**).
+   - Re-download `google-services.json` and place it at `android/app/google-services.json`.
+   - Run on a real device or an emulator image with Google Play services. If you see `ApiException: 10`, the SHA-1 is missing or the config was not re-downloaded.
+6. Enable Cloud Firestore.
+7. OpenStreetMap/Nominatim setup:
    - No API key is required for map tiles or basic place search.
    - The app uses `flutter_map` for map rendering and Nominatim for place search.
    - For production/high traffic, host your own Nominatim instance or use a managed provider that supports OSM data.
-7. Run `flutter run`.
+8. Run `flutter run`.
 
 ## APK Build
 

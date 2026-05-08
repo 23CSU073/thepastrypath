@@ -39,6 +39,14 @@ class AppAuthProvider extends ChangeNotifier {
     });
   }
 
+  Future<bool> signInWithGoogle(bool remember) async {
+    return _runAuth(() async {
+      await _repository.signInWithGoogle();
+      await _cache.setRememberLogin(remember);
+      rememberLogin = remember;
+    });
+  }
+
   Future<void> signOut() async {
     await _repository.signOut();
     notifyListeners();
@@ -51,6 +59,12 @@ class AppAuthProvider extends ChangeNotifier {
     try {
       await action();
       return true;
+    } on AuthCanceledException catch (error) {
+      errorMessage = error.toString();
+      return false;
+    } on AuthUnsupportedPlatformException catch (error) {
+      errorMessage = error.toString();
+      return false;
     } on FirebaseAuthException catch (error) {
       errorMessage = error.message ?? 'Authentication failed.';
       return false;

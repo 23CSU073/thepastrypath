@@ -43,6 +43,19 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _googleSignIn() async {
+    final auth = context.read<AppAuthProvider>();
+    final ok = await auth.signInWithGoogle(_remember);
+    if (!mounted) return;
+    if (ok) {
+      Navigator.pushReplacementNamed(context, AppRoutes.shell);
+    } else if (auth.errorMessage != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(auth.errorMessage!)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,6 +114,51 @@ class _AuthScreenState extends State<AuthScreen> {
                         key: _formKey,
                         child: Column(
                           children: [
+                            Consumer<AppAuthProvider>(
+                              builder: (context, auth, child) => OutlinedButton.icon(
+                                key: const ValueKey('google-signin-button'),
+                                onPressed: auth.isLoading ? null : _googleSignIn,
+                                icon: const Icon(Icons.g_translate_rounded),
+                                label: const Text('Continue with Google'),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(52),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  foregroundColor: AppColors.ink,
+                                  side: BorderSide(
+                                    color: AppColors.warmBrown.withValues(alpha: 0.28),
+                                  ),
+                                  backgroundColor: Colors.white.withValues(alpha: 0.9),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Divider(
+                                    color: AppColors.muted.withValues(alpha: 0.35),
+                                  ),
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 10),
+                                  child: Text(
+                                    'or',
+                                    style: TextStyle(
+                                      color: AppColors.muted,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Divider(
+                                    color: AppColors.muted.withValues(alpha: 0.35),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
                             TextFormField(
                               key: const ValueKey('email-field'),
                               controller: _email,
