@@ -32,6 +32,197 @@ Add final screenshots before submission:
 
 ## Architecture
 
+Mermaid diagrams render on GitHub. If you view this README elsewhere, ensure Mermaid is enabled.
+
+### Layered Overview
+
+```mermaid
+flowchart TD
+  subgraph Presentation["Presentation"]
+    Screens["Screens (lib/screens)"]
+    Widgets["Widgets (lib/widgets)"]
+  end
+
+  subgraph State["State (Provider)"]
+    Providers["ChangeNotifier providers (lib/providers)"]
+  end
+
+  subgraph Data["Data Layer"]
+    Models["Models (lib/data/models)"]
+    Repos["Repositories (lib/data/repositories)"]
+  end
+
+  subgraph Core["Core"]
+    CoreTheme["Theme (lib/core/theme)"]
+    CoreServices["Services (lib/core/services)"]
+    CoreUtils["Utils (lib/core/utils)"]
+    CoreConstants["Constants (lib/core/constants)"]
+  end
+
+  subgraph External["External / Platform"]
+    FirebaseAuth["Firebase Auth"]
+    Firestore["Cloud Firestore"]
+    SharedPrefs["SharedPreferences"]
+    GeolocatorPkg["Geolocator"]
+    PhotonApi["Photon API"]
+    NominatimApi["Nominatim API"]
+    GroqApi["Groq API"]
+  end
+
+  Screens --> Providers
+  Widgets --> Providers
+
+  Providers --> Repos
+  Providers --> Models
+  Providers --> CoreServices
+  Providers --> CoreUtils
+  Providers --> CoreTheme
+  Providers --> CoreConstants
+
+  Repos --> Firestore
+  Repos --> FirebaseAuth
+  Repos --> SharedPrefs
+  Repos --> GroqApi
+
+  CoreServices --> SharedPrefs
+  CoreServices --> GeolocatorPkg
+  CoreServices --> PhotonApi
+  CoreServices --> NominatimApi
+```
+
+### Provider To Repository Map
+
+```mermaid
+flowchart LR
+  subgraph Providers["Providers"]
+    PAuth["AppAuthProvider"]
+    PBakery["BakeryProvider"]
+    PFav["FavoritesProvider"]
+    PRecs["RecommendationProvider"]
+    PRes["ReservationProvider"]
+    PGroq["GrokProvider"]
+  end
+
+  subgraph Repositories["Repositories"]
+    RAuth["AuthRepository"]
+    RBakery["BakeryRepository"]
+    RFav["FavoritesRepository"]
+    RRes["ReservationRepository"]
+    RGroq["GrokRepository"]
+  end
+
+  subgraph CoreDeps["Core Dependencies"]
+    Cache["CacheService"]
+    Location["LocationService"]
+    Distance["DistanceUtils"]
+  end
+
+  subgraph ExternalDeps["External"]
+    FirebaseAuth2["Firebase Auth"]
+    Firestore2["Cloud Firestore"]
+    SharedPrefs2["SharedPreferences"]
+    Geolocator2["Geolocator"]
+    Groq2["Groq API"]
+  end
+
+  PAuth --> RAuth
+  PAuth --> Cache
+
+  PBakery --> RBakery
+  PBakery --> Location
+  PBakery --> Cache
+  PBakery --> Distance
+
+  PFav --> RFav
+  PRecs --> Cache
+  PRecs --> Distance
+
+  PRes --> RRes
+  PGroq --> RGroq
+
+  RAuth --> FirebaseAuth2
+  RBakery --> Firestore2
+  RBakery --> Cache
+  RFav --> Firestore2
+  RFav --> Cache
+  RRes --> Firestore2
+  RGroq --> Groq2
+
+  Cache --> SharedPrefs2
+  Location --> Geolocator2
+```
+
+### Key Flows
+
+```mermaid
+sequenceDiagram
+  participant Screen as Screen/Widget
+  participant Provider as BakeryProvider
+  participant Loc as LocationService
+  participant Repo as BakeryRepository
+  participant FS as Firestore
+  participant Cache as CacheService
+
+  Screen->>Provider: load()
+  Provider->>Loc: currentPosition()
+  Loc-->>Provider: Position? (or null)
+  Provider->>Repo: fetchBakeries()
+
+  alt Firestore available
+    Repo->>FS: collection("bakeries").get()
+    FS-->>Repo: docs
+    Repo->>Cache: cacheBakeries(...)
+    Cache-->>Repo: ok
+    Repo-->>Provider: bakeries
+  else Firestore error
+    Repo->>Cache: cachedBakeries()
+    Cache-->>Repo: cached list
+    Repo-->>Provider: cached + seed fallback
+  end
+
+  Provider-->>Screen: notifyListeners()
+```
+
+```mermaid
+sequenceDiagram
+  participant Screen as Map/Search UI
+  participant Service as OpenStreetMapPlaceSearchService
+  participant Photon as Photon API
+  participant Nominatim as Nominatim API
+
+  Screen->>Service: search(query, lat?, lon?)
+  Service->>Photon: GET /api?q=...&bbox=...
+  alt Photon responds
+    Photon-->>Service: results
+  else Photon error
+    Service-->>Service: record error and continue
+  end
+
+  Service->>Service: respect Nominatim 1s rate limit
+  Service->>Nominatim: GET /search?q=...&viewbox=...
+  alt Nominatim responds
+    Nominatim-->>Service: results
+  else Nominatim error
+    Service-->>Service: record error and continue
+  end
+  Service-->>Screen: merged, deduped results (limit 25)
+```
+
+```mermaid
+sequenceDiagram
+  participant Screen as Reservation UI
+  participant Provider as ReservationProvider
+  participant Repo as ReservationRepository
+  participant FS as Firestore
+
+  Screen->>Provider: reserve(...)
+  Provider->>Repo: createReservation(reservation)
+  Repo->>FS: add("reservations", payload)
+  FS-->>Repo: ok or error
+  Repo-->>Provider: completes or throws
+  Provider-->>Screen: success=false/true + errorMessage
+```
+
 ```text
 UI screens/widgets
   -> Provider state objects
